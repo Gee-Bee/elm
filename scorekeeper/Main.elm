@@ -77,8 +77,8 @@ update msg model =
         Score player points ->
             score model player points
 
-        _ ->
-            model
+        DeletePlay play ->
+            deletePlay model play
 
 
 save : Model -> Model
@@ -133,6 +133,7 @@ editPlayer model id =
             | name = initModel.name
             , playerId = initModel.playerId
             , players = newPlayers
+            , plays = newPlays
         }
 
 
@@ -158,6 +159,28 @@ score model scorer points =
         }
 
 
+deletePlay : Model -> Play -> Model
+deletePlay model play =
+    let
+        newPlayers =
+            List.map
+                (\player ->
+                    if player.id == play.playerId then
+                        { player | points = player.points - play.points }
+                    else
+                        player
+                )
+                model.players
+
+        newPlays =
+            List.filter (\p -> p.id /= play.id) model.plays
+    in
+        { model
+            | players = newPlayers
+            , plays = newPlays
+        }
+
+
 
 -- view
 
@@ -168,7 +191,7 @@ view model =
         [ h1 [] [ text "Scorekeeper" ]
         , playerSection model
         , playerForm model
-        , p [] [ text (toString model) ]
+        , playSection model
         ]
 
 
@@ -193,19 +216,19 @@ playerList : Model -> Html Msg
 playerList model =
     model.players
         |> List.sortBy .name
-        |> List.map player
+        |> List.map (player model.playerId)
         |> ul []
 
 
-player : Player -> Html Msg
-player player =
+player : Maybe Int -> Player -> Html Msg
+player editPlayerId player =
     li []
         [ i
             [ class "edit"
             , onClick (Edit player)
             ]
             []
-        , div []
+        , div [ class (editPlayerClass editPlayerId player) ]
             [ text player.name ]
         , button
             [ type_ "button"
@@ -243,6 +266,7 @@ playerForm model =
             , placeholder "Add/Edit Player..."
             , onInput Input
             , value model.name
+            , class (editInputClass model.playerId)
             ]
             []
         , button
@@ -251,6 +275,65 @@ playerForm model =
         , button
             [ type_ "button", onClick Cancel ]
             [ text "Cancel" ]
+        ]
+
+
+editInputClass : Maybe Int -> String
+editInputClass editPlayerId =
+    case editPlayerId of
+        Just id ->
+            "edit"
+
+        Nothing ->
+            ""
+
+
+editPlayerClass : Maybe Int -> Player -> String
+editPlayerClass editPlayerId player =
+    case editPlayerId of
+        Just id ->
+            if player.id == id then
+                "edit"
+            else
+                ""
+
+        Nothing ->
+            ""
+
+
+playSection : Model -> Html Msg
+playSection model =
+    div []
+        [ playListHeader
+        , playList model
+        ]
+
+
+playListHeader : Html Msg
+playListHeader =
+    header []
+        [ div [] [ text "Plays" ]
+        , div [] [ text "Points" ]
+        ]
+
+
+playList : Model -> Html Msg
+playList model =
+    model.plays
+        |> List.map play
+        |> ul []
+
+
+play : Play -> Html Msg
+play play =
+    li []
+        [ i
+            [ class "remove"
+            , onClick (DeletePlay play)
+            ]
+            []
+        , div [] [ text play.name ]
+        , div [] [ text (toString play.points) ]
         ]
 
 
